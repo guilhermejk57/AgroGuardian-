@@ -1,0 +1,12 @@
+{
+  "milho": ["lagarta-do-cartucho", "cigarrinha-do-milho", "ferrugem-comum"],
+  "soja": ["ferrugem-asiática", "percevejo-marrom", "lagarta-da-soja"],
+  "feijão": ["mosca-branca", "antracnose", "pulgão-preto"],
+  "cana-de-açúcar": ["broca-da-cana", "cigarrinha-da-cana", "carvão-da-cana"],
+  "algodão": ["bicudo-do-algodoeiro", "lagarta-rosada", "pulgão-do-algodoeiro"],
+  "arroz": ["bicheira-do-colmo", "brusone", "lagarta-da-panícula"],
+  "trigo": ["ferrugem-do-colmo", "gorgulho-do-trigo", "mosca-branca"],
+  "tomate": ["traça-do-tomateiro", "pinta-preta", "mosca-minadora"],
+  "batata": ["requeima", "vaquinha", "pulgão-verde"],
+  "café": ["broca-do-café", "ferrugem-do-cafeeiro", "cochonilha"]
+}
