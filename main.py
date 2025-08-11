@@ -55,4 +55,4 @@ if enviar:
             st.error(f"Erro: {str(e)}")
 
 # api: AIzaSyDvvCnRkPRKyeB8LRVmVHh11crJNlxxyT4
-# comando: python3 -m streamlit run main.py
+
