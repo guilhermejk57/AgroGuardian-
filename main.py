@@ -32,7 +32,7 @@ with st.form(key='formulario_analise'):
 
 if enviar:
     if prompt == '':
-        st.error('Por favor, digite sua dúvida agrícola antes de enviar.')
+        st.error('Por favor, anexe uma imagem antes de prosseguir.')
     elif imagem_envio is None:
         st.error('Por favor, envie uma imagem antes de enviar.')
     else:
@@ -56,5 +56,6 @@ if enviar:
 
 
 # api: AIzaSyDvvCnRkPRKyeB8LRVmVHh11crJNlxxyT4
+
 
 
