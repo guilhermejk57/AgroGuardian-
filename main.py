@@ -54,8 +54,3 @@ if enviar:
         except Exception as e:
             st.error(f"Erro: {str(e)}")
 
-
-# api: AIzaSyDvvCnRkPRKyeB8LRVmVHh11crJNlxxyT4
-
-
-
