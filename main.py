@@ -10,7 +10,7 @@ st.set_page_config(page_title='AgroGuardian - Leitor de Imagens', page_icon=':ro
 st.title('🌱AgroGuardian - Detecção de Pragas')
 st.caption('Feito pelos alunos do 2°D Redes de Computadores')
 
-# 🔑 Pega a chave direto dos segredos do Streamlit
+# 🔑 Pega a chave direto dos segredos do Streamlit, ou usa valor local para desenvolvimento
 if 'chave_api' not in st.session_state:
     try:
         chave_api = st.secrets["GEMINI_API_KEY"]
@@ -20,8 +20,15 @@ if 'chave_api' not in st.session_state:
             st.sidebar.success('Chave API carregada com sucesso ✅')
         else:
             st.sidebar.error('Chave API inválida ❌')
-    except KeyError:
-        st.sidebar.error('A chave GEMINI_API_KEY não foi configurada nos Secrets')
+    except Exception:
+        # Para rodar local, coloque sua chave manualmente aqui:
+        chave_api_local = "AIzaSyDvvCnRkPRKyeB8LRVmVHh11crJNlxxyT4"
+        if chave_api_local.startswith('AI'):
+            st.session_state.chave_api = chave_api_local
+            genai.configure(api_key=st.session_state.chave_api)
+            st.sidebar.info('Chave API carregada localmente para desenvolvimento ⚠️')
+        else:
+            st.sidebar.error('Chave API local inválida ❌')
 
 modelo = genai.GenerativeModel('gemini-2.0-flash')
 culturas = carregar_culturas()
@@ -64,5 +71,3 @@ if historico:
         st.sidebar.write(f"**{linha[0]}** - {linha[1]}")
 else:
     st.sidebar.write("Nenhuma consulta registrada ainda.")
-
-
