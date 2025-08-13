@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -41,12 +42,14 @@ def imagem2bytes(imagem_upload):
 
 # ---- Google Sheets ----
 def conectar_google_sheets():
-    """Conecta ao Google Sheets usando as credenciais"""
+    """Conecta ao Google Sheets usando as credenciais armazenadas no Streamlit Secrets"""
     escopos = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
-    creds = Credentials.from_service_account_file('google_credentials.json', scopes=escopos)
+    creds_json_str = st.secrets["google_credentials"]["json"]
+    creds_info = json.loads(creds_json_str)
+    creds = Credentials.from_service_account_info(creds_info, scopes=escopos)
     cliente = gspread.authorize(creds)
     return cliente
 
