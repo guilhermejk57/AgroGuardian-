@@ -3,6 +3,9 @@ import streamlit as st
 import google.generativeai as genai
 from funcoes import *
 
+# ---- ID da planilha ----
+SHEET_ID = "1bgT0vsEx4dFGxtTQs7RU5jVvvtZsbHnjrpyPQ7tibn4"
+
 st.set_page_config(page_title='AgroGuardian - Leitor de Imagens', page_icon=':robot:', layout='centered')
 st.title('🌱AgroGuardian - Detecção de Pragas')
 st.caption('Feito pelos alunos do 2°D Redes de Computadores')
@@ -21,10 +24,8 @@ if 'chave_api' not in st.session_state:
         st.sidebar.error('A chave GEMINI_API_KEY não foi configurada nos Secrets')
 
 modelo = genai.GenerativeModel('gemini-2.0-flash')
-
 culturas = carregar_culturas()
 
-# Usar formulário para permitir enviar com Enter
 with st.form(key='formulario_analise'):
     prompt = st.text_input(label='Digite sua dúvida agrícola', placeholder='Ex: Qual é essa praga e como combater?')
     imagem_envio = st.file_uploader(label='Envie uma imagem da planta afetada', type=['jpg', 'jpeg', 'png'])
@@ -49,8 +50,18 @@ if enviar:
                 st.subheader('Diagnóstico:')
                 st.write(resposta)
 
-            salvar_historico(prompt, resposta, imagem_envio.name)
+            # Salvar no Google Sheets
+            salvar_historico_online(prompt, resposta, imagem_envio.name, SHEET_ID)
 
         except Exception as e:
             st.error(f"Erro: {str(e)}")
+
+# ---- Mostrar histórico online ----
+st.sidebar.subheader("📜 Histórico de Consultas")
+historico = carregar_historico_online(SHEET_ID)
+if historico:
+    for linha in historico[1:]:
+        st.sidebar.write(f"**{linha[0]}** - {linha[1]}")
+else:
+    st.sidebar.write("Nenhuma consulta registrada ainda.")
 
