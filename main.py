@@ -65,3 +65,4 @@ if historico:
 else:
     st.sidebar.write("Nenhuma consulta registrada ainda.")
 
+
