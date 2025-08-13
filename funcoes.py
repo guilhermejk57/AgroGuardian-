@@ -1,6 +1,7 @@
 import json
-import csv
 from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 def carregar_culturas():
     """Carrega a base de conhecimento de culturas e pragas"""
@@ -38,8 +39,32 @@ def imagem2bytes(imagem_upload):
     else:
         raise FileNotFoundError('Nenhuma imagem foi carregada.')
 
-def salvar_historico(pergunta, resposta, nome_imagem):
-    """Salva as consultas em um arquivo CSV"""
-    with open('historico.csv', 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), pergunta, resposta, nome_imagem])
+# ---- Google Sheets ----
+def conectar_google_sheets():
+    """Conecta ao Google Sheets usando as credenciais"""
+    escopos = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
+    creds = Credentials.from_service_account_file('google_credentials.json', scopes=escopos)
+    cliente = gspread.authorize(creds)
+    return cliente
+
+def salvar_historico_online(pergunta, resposta, nome_imagem, sheet_id):
+    """Salva o histórico diretamente na planilha do Google Sheets"""
+    cliente = conectar_google_sheets()
+    planilha = cliente.open_by_key(sheet_id)
+    aba = planilha.sheet1
+    aba.append_row([
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        pergunta,
+        resposta,
+        nome_imagem
+    ])
+
+def carregar_historico_online(sheet_id):
+    """Carrega o histórico da planilha do Google Sheets"""
+    cliente = conectar_google_sheets()
+    planilha = cliente.open_by_key(sheet_id)
+    aba = planilha.sheet1
+    return aba.get_all_values()
