@@ -9,6 +9,7 @@ def carregar_culturas():
         return json.load(f)
 
 def resposta_gemini(modelo, imagem, prompt):
+    """Envia imagem + pergunta para o modelo Gemini"""
     contexto_agro = """
 Você é um chatbot especializado em detecção, identificação e controle de pragas urbanas, agrícolas e domésticas.
 Responda apenas perguntas relacionadas a esse tema, como: tipos de pragas, formas de controle, prevenção, identificação de sinais, uso de pesticidas, métodos naturais e outras dúvidas específicas sobre infestação e manejo.
@@ -19,6 +20,7 @@ Mantenha um tom profissional e acessível.
     return resposta.text
 
 def imagem2bytes(imagem_upload):
+    """Converte a imagem enviada para bytes antes de enviar ao modelo"""
     if imagem_upload is not None:
         if imagem_upload.size > 5 * 1024 * 1024:
             raise ValueError("Imagem muito grande! Máximo 5MB.")
@@ -32,6 +34,7 @@ def imagem2bytes(imagem_upload):
         raise FileNotFoundError('Nenhuma imagem foi carregada.')
 
 def conectar_google_sheets(creds_dict):
+    """Conecta ao Google Sheets usando credenciais do service account"""
     escopos = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
@@ -40,19 +43,23 @@ def conectar_google_sheets(creds_dict):
     cliente = gspread.authorize(creds)
     return cliente
 
-def salvar_historico_online(pergunta, resposta, nome_imagem, sheet_id, creds_dict):
+def salvar_historico_online(usuario, pergunta, resposta, nome_imagem, sheet_id, creds_dict):
+    """Salva uma nova linha no histórico da planilha"""
     cliente = conectar_google_sheets(creds_dict)
     planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
     aba.append_row([
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        pergunta,
-        resposta,
-        nome_imagem
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Data e hora
+        usuario,                                      # Nome ou email do usuário
+        pergunta,                                     # Pergunta feita
+        resposta,                                     # Resposta gerada
+        nome_imagem                                   # Nome do arquivo de imagem enviado
     ])
 
 def carregar_historico_online(sheet_id, creds_dict):
+    """Carrega todas as linhas do histórico"""
     cliente = conectar_google_sheets(creds_dict)
     planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
     return aba.get_all_values()
+
