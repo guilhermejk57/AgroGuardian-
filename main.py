@@ -2,8 +2,6 @@ from PIL import Image
 import streamlit as st
 import google.generativeai as genai
 import json
-import base64
-from io import BytesIO
 from funcoes import *
 
 # Configurações da página
@@ -104,13 +102,8 @@ elif menu == "Histórico":
                     st.markdown(f"### {linha[0]} - {linha[1]}")
                     st.write(f"**Pergunta:** {linha[2]}")
                     st.write(f"**Resposta:** {linha[3]}")
-
-                    try:
-                        img_bytes = base64.b64decode(linha[4])
-                        st.image(BytesIO(img_bytes), caption="Imagem enviada", use_container_width=True)
-                    except:
-                        st.caption("📎 Nenhuma imagem disponível")
-
+                    if linha[4]:
+                        st.image(linha[4], caption="Imagem enviada", use_container_width=True)
                     st.markdown("---")
             else:
                 # Usuário vê só o dele
@@ -122,13 +115,8 @@ elif menu == "Histórico":
                             st.markdown(f"### {linha[0]}")
                             st.write(f"**Pergunta:** {linha[2]}")
                             st.write(f"**Resposta:** {linha[3]}")
-
-                            try:
-                                img_bytes = base64.b64decode(linha[4])
-                                st.image(BytesIO(img_bytes), caption="Imagem enviada", use_container_width=True)
-                            except:
-                                st.caption("📎 Nenhuma imagem disponível")
-
+                            if linha[4]:
+                                st.image(linha[4], caption="Imagem enviada", use_container_width=True)
                             st.markdown("---")
                     else:
                         st.info("Nenhuma consulta registrada ainda.")
