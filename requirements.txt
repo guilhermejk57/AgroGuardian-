@@ -1,8 +1,2 @@
-google-generativeai
-streamlit
-protobuf
-pillow
-gspread
-gspread
-google-auth
-
+streamlit==1.29.0
+google-generative-ai==1.0.0
