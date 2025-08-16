@@ -1,9 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 import json
+import os
 
 HISTORICO_ARQUIVO = "historico.json"
+
+# --- Configurar API Gemini ---
+genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
 # --- Função para processar imagem/texto ---
 def processar_imagem(consulta, imagem):
