@@ -1,5 +1,6 @@
 import streamlit as st
 from funcoes import processar_imagem, carregar_historico, salvar_historico
+from PIL import Image
 
 # --- Configurações do site ---
 st.set_page_config(page_title="AgroGuardian - Detecção de Pragas", page_icon=":robot:", layout="centered")
