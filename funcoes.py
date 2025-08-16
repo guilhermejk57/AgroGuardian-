@@ -1,4 +1,5 @@
 import json
+import base64
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 import gspread
@@ -43,17 +44,22 @@ def conectar_google_sheets(creds_dict):
     cliente = gspread.authorize(creds)
     return cliente
 
-def salvar_historico_online(usuario, pergunta, resposta, nome_imagem, sheet_id, creds_dict):
-    """Salva uma nova linha no histórico da planilha"""
+def salvar_historico_online(usuario, pergunta, resposta, imagem_upload, sheet_id, creds_dict):
+    """Salva uma nova linha no histórico da planilha, incluindo a imagem em base64"""
     cliente = conectar_google_sheets(creds_dict)
     planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
+
+    # Converter imagem para base64
+    imagem_bytes = imagem_upload.getvalue()
+    imagem_base64 = base64.b64encode(imagem_bytes).decode("utf-8")
+
     aba.append_row([
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Data e hora
-        usuario,                                      # Nome ou email do usuário
-        pergunta,                                     # Pergunta feita
-        resposta,                                     # Resposta gerada
-        nome_imagem                                   # Nome do arquivo de imagem enviado
+        usuario,                                      # Nome ou email
+        pergunta,                                     # Pergunta
+        resposta,                                     # Resposta
+        imagem_base64                                 # Imagem codificada
     ])
 
 def carregar_historico_online(sheet_id, creds_dict):
@@ -62,4 +68,3 @@ def carregar_historico_online(sheet_id, creds_dict):
     planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
     return aba.get_all_values()
-
