@@ -2,6 +2,8 @@ from PIL import Image
 import streamlit as st
 import google.generativeai as genai
 import json
+import base64
+from io import BytesIO
 from funcoes import *
 
 # Configurações da página
@@ -76,7 +78,7 @@ if menu == "Nova consulta":
 
                 # Salvar histórico na planilha
                 if google_creds_dict:
-                    salvar_historico_online(usuario, prompt, resposta, imagem_envio.name, SHEET_ID, google_creds_dict)
+                    salvar_historico_online(usuario, prompt, resposta, imagem_envio, SHEET_ID, google_creds_dict)
                 else:
                     st.warning("Histórico não salvo: credenciais do Google não configuradas.")
 
@@ -102,7 +104,13 @@ elif menu == "Histórico":
                     st.markdown(f"### {linha[0]} - {linha[1]}")
                     st.write(f"**Pergunta:** {linha[2]}")
                     st.write(f"**Resposta:** {linha[3]}")
-                    st.caption(f"📎 Imagem enviada: {linha[4]}")
+
+                    try:
+                        img_bytes = base64.b64decode(linha[4])
+                        st.image(BytesIO(img_bytes), caption="Imagem enviada", use_container_width=True)
+                    except:
+                        st.caption("📎 Nenhuma imagem disponível")
+
                     st.markdown("---")
             else:
                 # Usuário vê só o dele
@@ -114,7 +122,13 @@ elif menu == "Histórico":
                             st.markdown(f"### {linha[0]}")
                             st.write(f"**Pergunta:** {linha[2]}")
                             st.write(f"**Resposta:** {linha[3]}")
-                            st.caption(f"📎 Imagem enviada: {linha[4]}")
+
+                            try:
+                                img_bytes = base64.b64decode(linha[4])
+                                st.image(BytesIO(img_bytes), caption="Imagem enviada", use_container_width=True)
+                            except:
+                                st.caption("📎 Nenhuma imagem disponível")
+
                             st.markdown("---")
                     else:
                         st.info("Nenhuma consulta registrada ainda.")
