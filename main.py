@@ -27,6 +27,12 @@ try:
 except Exception:
     SHEET_ID = "SEU_ID_DA_PLANILHA"
 
+try:
+    DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
+except Exception:
+    DRIVE_FOLDER_ID = None
+    st.error("Pasta do Google Drive não configurada no secrets.toml")
+
 # Configurar API Gemini
 if chave_api.startswith('AI'):
     genai.configure(api_key=chave_api)
@@ -75,10 +81,10 @@ if menu == "Nova consulta":
                     st.write(resposta)
 
                 # Salvar histórico na planilha
-                if google_creds_dict:
-                    salvar_historico_online(usuario, prompt, resposta, imagem_envio, SHEET_ID, google_creds_dict)
+                if google_creds_dict and DRIVE_FOLDER_ID:
+                    salvar_historico_online(usuario, prompt, resposta, imagem_envio, SHEET_ID, google_creds_dict, DRIVE_FOLDER_ID)
                 else:
-                    st.warning("Histórico não salvo: credenciais do Google não configuradas.")
+                    st.warning("Histórico não salvo: credenciais do Google ou pasta do Drive não configuradas.")
 
             except Exception as e:
                 st.error(f"Erro: {e}")
