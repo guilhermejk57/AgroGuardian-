@@ -1,14 +1,10 @@
 import streamlit as st
-import google.generativeai as genai
 from funcoes import processar_imagem, carregar_historico, salvar_historico
 
 # --- Configurações do site ---
 st.set_page_config(page_title="AgroGuardian - Detecção de Pragas", page_icon=":robot:", layout="centered")
 st.title("🌱 AgroGuardian - Detecção de Pragas")
 st.caption("Feito pelos alunos do 2°D Redes de Computadores")
-
-# --- Entrada da chave API ---
-genai.configure(api_key=st.secrets["google_api"]["api_key"])
 
 # --- Carregar histórico global ---
 if "historico" not in st.session_state:
