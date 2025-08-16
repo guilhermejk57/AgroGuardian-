@@ -2,4 +2,6 @@ streamlit
 google-generativeai
 gspread
 google-auth
+google-auth-oauthlib
+protobuf
 Pillow
