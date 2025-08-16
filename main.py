@@ -1,57 +1,60 @@
-from PIL import Image
 import streamlit as st
-import google.generativeai as genai
-from funcoes import *
+from funcoes import processar_imagem, carregar_historico, salvar_historico
 
-st.set_page_config(page_title='AgroGuardian - Leitor de Imagens', page_icon=':robot:', layout='centered')
-st.title('🌱AgroGuardian - Detecção de Pragas')
-st.caption('Feito pelos alunos do 2°D Redes de Computadores')
+# --- Configurações do site ---
+st.set_page_config(page_title="AgroGuardian - Detecção de Pragas", page_icon=":robot:", layout="centered")
+st.title("🌱 AgroGuardian - Detecção de Pragas")
+st.caption("Feito pelos alunos do 2°D Redes de Computadores")
 
-# 🔑 Pega a chave direto dos segredos do Streamlit
-if 'chave_api' not in st.session_state:
-    try:
-        chave_api = st.secrets["GEMINI_API_KEY"]
-        if chave_api.startswith('AI'):
-            st.session_state.chave_api = chave_api
-            genai.configure(api_key=st.session_state.chave_api)
-            st.sidebar.success('Chave API carregada com sucesso ✅')
-        else:
-            st.sidebar.error('Chave API inválida ❌')
-    except KeyError:
-        st.sidebar.error('A chave GEMINI_API_KEY não foi configurada nos Secrets')
+# --- Carregar histórico global ---
+if "historico" not in st.session_state:
+    st.session_state.historico = carregar_historico()
 
-modelo = genai.GenerativeModel('gemini-2.0-flash')
+# --- Flag para admin ---
+if "admin_logado" not in st.session_state:
+    st.session_state.admin_logado = False
 
-culturas = carregar_culturas()
+# --- Entrada do usuário ---
+consulta = st.text_input("Digite sua consulta:")
+imagem = st.file_uploader("Envie uma imagem (opcional):", type=["jpg", "jpeg", "png"])
 
-# Usar formulário para permitir enviar com Enter
-with st.form(key='formulario_analise'):
-    prompt = st.text_input(label='Digite sua dúvida agrícola', placeholder='Ex: Qual é essa praga e como combater?')
-    imagem_envio = st.file_uploader(label='Envie uma imagem da planta afetada', type=['jpg', 'jpeg', 'png'])
-    enviar = st.form_submit_button('Analisar imagem')
-
-if enviar:
-    if prompt == '':
-        st.error('Por favor, digite sua dúvida agrícola antes de enviar.')
-    elif imagem_envio is None:
-        st.error('Por favor, envie uma imagem antes de enviar.')
+if st.button("Enviar"):
+    if consulta.strip() == "" and imagem is None:
+        st.warning("⚠️ Digite uma consulta ou envie uma imagem.")
     else:
-        try:
-            # Mostra a imagem imediatamente
-            col1, col2 = st.columns(2)
-            with col1:
-                imagem = Image.open(imagem_envio)
-                st.image(imagem, use_container_width=True, caption="Imagem enviada")
+        resposta = processar_imagem(consulta, imagem)
 
-            # Processa a resposta do Gemini
-            dados_imagem = imagem2bytes(imagem_envio)
-            resposta = resposta_gemini(modelo, dados_imagem, prompt)
+        # Salva no histórico da sessão
+        st.session_state.historico.append({
+            "consulta": consulta if consulta else "(sem texto)",
+            "resposta": resposta
+        })
 
-            with col2:
-                st.subheader('Diagnóstico:')
-                st.write(resposta)
+        # Salva também em arquivo para persistência
+        salvar_historico(st.session_state.historico)
 
-            salvar_historico(prompt, resposta, imagem_envio.name)
+# --- Exibe resultado da última consulta ---
+if st.session_state.historico:
+    st.subheader("📌 Última Resposta")
+    st.write(st.session_state.historico[-1]["resposta"])
 
-        except Exception as e:
-            st.error(f"Erro: {str(e)}")
+# --- ADMIN: ver histórico completo ---
+with st.expander("🔑 Área do Criador"):
+    if not st.session_state.admin_logado:
+        senha = st.text_input("Digite a senha de admin:", type="password")
+        if senha == st.secrets["admin"]["password"]:
+            st.session_state.admin_logado = True
+            st.success("✅ Acesso liberado! (sessão salva)")
+        elif senha:
+            st.error("❌ Senha incorreta!")
+    else:
+        st.success("✅ Você já está logado como admin.")
+        if st.button("Sair da conta admin"):
+            st.session_state.admin_logado = False
+        else:
+            for i, item in enumerate(st.session_state.historico, start=1):
+                st.markdown(f"**{i}. Pergunta:** {item['consulta']}")
+                st.markdown(f"**Resposta:** {item['resposta']}")
+                st.markdown("---")
+
+
