@@ -47,12 +47,20 @@ def conectar_google(creds_dict):
     cliente_drive = build("drive", "v3", credentials=creds)
     return cliente_sheets, cliente_drive
 
-def upload_imagem_drive(imagem_upload, cliente_drive):
-    """Faz upload da imagem no Google Drive e retorna o link público"""
-    file_metadata = {"name": imagem_upload.name, "mimeType": imagem_upload.type}
+def upload_imagem_drive(imagem_upload, cliente_drive, pasta_id):
+    """Faz upload da imagem no Google Drive (pasta compartilhada) e retorna link público"""
+    file_metadata = {
+        "name": imagem_upload.name,
+        "mimeType": imagem_upload.type,
+        "parents": [pasta_id]  # salva dentro da pasta
+    }
     media = MediaIoBaseUpload(io.BytesIO(imagem_upload.getvalue()), mimetype=imagem_upload.type)
 
-    arquivo = cliente_drive.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    arquivo = cliente_drive.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields="id"
+    ).execute()
 
     # Tornar arquivo público
     cliente_drive.permissions().create(
@@ -60,23 +68,22 @@ def upload_imagem_drive(imagem_upload, cliente_drive):
         body={"role": "reader", "type": "anyone"}
     ).execute()
 
-    link = f"https://drive.google.com/uc?id={arquivo['id']}"
-    return link
+    return f"https://drive.google.com/uc?id={arquivo['id']}"
 
-def salvar_historico_online(usuario, pergunta, resposta, imagem_upload, sheet_id, creds_dict):
-    """Salva uma nova linha no histórico da planilha, incluindo link da imagem"""
+def salvar_historico_online(usuario, pergunta, resposta, imagem_upload, sheet_id, creds_dict, pasta_id):
+    """Salva nova linha no histórico da planilha, com link da imagem"""
     cliente_sheets, cliente_drive = conectar_google(creds_dict)
     planilha = cliente_sheets.open_by_key(sheet_id)
     aba = planilha.sheet1
 
-    link_imagem = upload_imagem_drive(imagem_upload, cliente_drive)
+    link_imagem = upload_imagem_drive(imagem_upload, cliente_drive, pasta_id)
 
     aba.append_row([
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Data e hora
-        usuario,                                      # Nome ou email
-        pergunta,                                     # Pergunta
-        resposta,                                     # Resposta
-        link_imagem                                   # Link da imagem
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        usuario,
+        pergunta,
+        resposta,
+        link_imagem
     ])
 
 def carregar_historico_online(sheet_id, creds_dict):
