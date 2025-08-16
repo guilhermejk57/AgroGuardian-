@@ -2,9 +2,6 @@ import json
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 import gspread
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-import io
 
 def carregar_culturas():
     """Carrega a base de conhecimento de culturas e pragas"""
@@ -36,59 +33,32 @@ def imagem2bytes(imagem_upload):
     else:
         raise FileNotFoundError('Nenhuma imagem foi carregada.')
 
-def conectar_google(creds_dict):
-    """Conecta Google Sheets + Drive"""
+def conectar_google_sheets(creds_dict):
+    """Conecta ao Google Sheets usando credenciais do service account"""
     escopos = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)
-    cliente_sheets = gspread.authorize(creds)
-    cliente_drive = build("drive", "v3", credentials=creds)
-    return cliente_sheets, cliente_drive
+    cliente = gspread.authorize(creds)
+    return cliente
 
-def upload_imagem_drive(imagem_upload, cliente_drive, pasta_id):
-    """Faz upload da imagem no Google Drive (pasta compartilhada) e retorna link público"""
-    file_metadata = {
-        "name": imagem_upload.name,
-        "mimeType": imagem_upload.type,
-        "parents": [pasta_id]  # salva dentro da pasta
-    }
-    media = MediaIoBaseUpload(io.BytesIO(imagem_upload.getvalue()), mimetype=imagem_upload.type)
-
-    arquivo = cliente_drive.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id"
-    ).execute()
-
-    # Tornar arquivo público
-    cliente_drive.permissions().create(
-        fileId=arquivo["id"],
-        body={"role": "reader", "type": "anyone"}
-    ).execute()
-
-    return f"https://drive.google.com/uc?id={arquivo['id']}"
-
-def salvar_historico_online(usuario, pergunta, resposta, imagem_upload, sheet_id, creds_dict, pasta_id):
-    """Salva nova linha no histórico da planilha, com link da imagem"""
-    cliente_sheets, cliente_drive = conectar_google(creds_dict)
-    planilha = cliente_sheets.open_by_key(sheet_id)
+def salvar_historico_online(usuario, pergunta, resposta, nome_imagem, sheet_id, creds_dict):
+    """Salva uma nova linha no histórico da planilha"""
+    cliente = conectar_google_sheets(creds_dict)
+    planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
-
-    link_imagem = upload_imagem_drive(imagem_upload, cliente_drive, pasta_id)
-
     aba.append_row([
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        usuario,
-        pergunta,
-        resposta,
-        link_imagem
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Data e hora
+        usuario,                                      # Nome ou email do usuário
+        pergunta,                                     # Pergunta feita
+        resposta,                                     # Resposta gerada
+        nome_imagem                                   # Nome do arquivo de imagem enviado
     ])
 
 def carregar_historico_online(sheet_id, creds_dict):
     """Carrega todas as linhas do histórico"""
-    cliente_sheets, _ = conectar_google(creds_dict)
-    planilha = cliente_sheets.open_by_key(sheet_id)
+    cliente = conectar_google_sheets(creds_dict)
+    planilha = cliente.open_by_key(sheet_id)
     aba = planilha.sheet1
     return aba.get_all_values()
