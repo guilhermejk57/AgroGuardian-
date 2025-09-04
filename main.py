@@ -2,126 +2,144 @@ from PIL import Image
 import streamlit as st
 import google.generativeai as genai
 import json
-from funcoes import *
+from funcoes import (
+    carregar_culturas,
+    resposta_gemini,
+    imagem2bytes,
+    conectar_google_sheets,
+    salvar_historico_online,
+    carregar_historico_online,
+)
 
-# Configurações da página
-st.set_page_config(page_title='AgroGuardian - Leitor de Imagens', page_icon=':robot:', layout='centered')
-st.title('🌱 AgroGuardian - Detecção de Pragas')
-st.caption('Feito pelos alunos do 2°D Redes de Computadores')
+# Configuração da página
+st.set_page_config(page_title="AgroGuardian", layout="wide")
+st.title("🌱 AgroGuardian")
+st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
 
-# Carregar credenciais do Streamlit secrets
-try:
-    chave_api = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    chave_api = "SUA_CHAVE_GEMINI_AQUI"
+# Segredos (API e credenciais)
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "SUA_CHAVE_GEMINI_AQUI")
+GOOGLE_CREDENTIALS_JSON = st.secrets.get("GOOGLE_CREDENTIALS_JSON", None)
+SHEET_ID = st.secrets.get("SHEET_ID", "SEU_ID_DA_PLANILHA")
 
-try:
-    google_creds_json = st.secrets["GOOGLE_CREDENTIALS_JSON"]
-    google_creds_dict = json.loads(google_creds_json)
-except Exception:
-    st.error("Erro ao carregar credenciais do Google do secrets.toml")
-    google_creds_dict = None
-
-try:
-    SHEET_ID = st.secrets["SHEET_ID"]
-except Exception:
-    SHEET_ID = "SEU_ID_DA_PLANILHA"
-
-# Configurar API Gemini
-if chave_api.startswith('AI'):
-    genai.configure(api_key=chave_api)
-    modelo = genai.GenerativeModel('gemini-2.0-flash')
+if GOOGLE_CREDENTIALS_JSON:
+    creds_dict = json.loads(GOOGLE_CREDENTIALS_JSON)
 else:
-    st.error("Chave Gemini API inválida!")
+    creds_dict = None
+    st.warning("⚠️ Credenciais do Google não configuradas. Histórico não será salvo.")
 
+# Configuração do Gemini
+if GEMINI_API_KEY.startswith("AI"):
+    genai.configure(api_key=GEMINI_API_KEY)
+    modelo = genai.GenerativeModel("gemini-2.0-flash")
+else:
+    st.error("Chave Gemini API inválida. Configure em st.secrets.")
+    modelo = None
+
+# Carregar culturas
 culturas = carregar_culturas()
 
-# -------------------------------
-# MENU LATERAL
-# -------------------------------
-menu = st.sidebar.radio("📌 Navegar", ["Nova consulta", "Histórico"])
+# Sidebar
+menu = st.sidebar.radio("Menu", ["Nova consulta", "Histórico"])
 
-# -------------------------------
-# NOVA CONSULTA
-# -------------------------------
+# --- Nova consulta ---
 if menu == "Nova consulta":
-    with st.form(key='formulario_analise'):
-        usuario = st.text_input("Digite seu nome ou email")  # identificação do usuário
-        prompt = st.text_input('Digite sua dúvida agrícola', placeholder='Ex: Qual é essa praga e como combater?')
-        imagem_envio = st.file_uploader('Envie uma imagem da planta afetada', type=['jpg', 'jpeg', 'png'])
-        enviar = st.form_submit_button('Analisar imagem')
+    with st.form("consulta_form"):
+        usuario = st.text_input("Seu nome ou e-mail")
 
-    if enviar:
-        if usuario.strip() == "":
-            st.error("Por favor, digite seu nome ou email.")
-        elif prompt == '':
-            st.error('Por favor, digite sua dúvida.')
-        elif imagem_envio is None:
-            st.error('Por favor, envie uma imagem.')
+        # selectbox com culturas
+        cultura_selecionada = st.selectbox(
+            "Selecione a cultura",
+            ["(não especificar)"] + list(culturas.keys())
+        )
+
+        prompt = st.text_area("Descreva sua dúvida sobre a praga")
+        imagem_envio = st.file_uploader("Envie uma imagem da planta", type=["jpg", "jpeg", "png"])
+        submit = st.form_submit_button("Analisar imagem")
+
+    if submit:
+        if not usuario.strip():
+            st.error("Informe seu nome ou e-mail!")
+        elif not prompt.strip():
+            st.error("Digite uma descrição da sua dúvida!")
+        elif not imagem_envio:
+            st.error("Envie uma imagem da planta!")
         else:
             try:
-                # Processar a imagem e obter resposta do Gemini
                 dados_imagem = imagem2bytes(imagem_envio)
-                resposta = resposta_gemini(modelo, dados_imagem, prompt)
 
-                # Exibir imagem + diagnóstico lado a lado
+                # prompt reforçado com cultura (se selecionada)
+                if cultura_selecionada != "(não especificar)":
+                    prompt_completo = (
+                        f"O usuário selecionou a cultura **{cultura_selecionada}**. "
+                        f"As pragas mais comuns para essa cultura são: {', '.join(culturas[cultura_selecionada])}. "
+                        f"Agora responda considerando a imagem e essa informação: {prompt}"
+                    )
+                else:
+                    prompt_completo = prompt
+
+                resposta = resposta_gemini(modelo, dados_imagem, prompt_completo)
+
                 col1, col2 = st.columns(2)
                 with col1:
                     imagem = Image.open(imagem_envio)
-                    st.image(imagem, use_container_width=True)
-
+                    st.image(imagem, caption="Imagem enviada", use_container_width=True)
                 with col2:
-                    st.subheader('Diagnóstico:')
+                    st.subheader("Diagnóstico")
                     st.write(resposta)
 
-                # Salvar histórico na planilha
-                if google_creds_dict:
-                    salvar_historico_online(usuario, prompt, resposta, imagem_envio.name, SHEET_ID, google_creds_dict)
+                    # mostra pragas comuns se o usuário escolheu cultura
+                    if cultura_selecionada != "(não especificar)":
+                        pragas_comuns = culturas[cultura_selecionada]
+                        st.info(
+                            f"🔎 Para a cultura **{cultura_selecionada}**, "
+                            f"as pragas mais comuns são: {', '.join(pragas_comuns)}."
+                        )
+
+                # salvar histórico online (se credenciais existirem)
+                if creds_dict:
+                    cliente = conectar_google_sheets(creds_dict)
+                    salvar_historico_online(cliente, SHEET_ID, usuario, prompt, resposta, imagem_envio.name)
                 else:
-                    st.warning("Histórico não salvo: credenciais do Google não configuradas.")
+                    st.warning("⚠️ Histórico não foi salvo (credenciais do Google ausentes).")
 
             except Exception as e:
                 st.error(f"Erro: {e}")
 
-# -------------------------------
-# HISTÓRICO
-# -------------------------------
+# --- Histórico ---
 elif menu == "Histórico":
-    st.subheader("📜 Histórico de Consultas")
-
-    if google_creds_dict:
+    st.subheader("Histórico de Consultas")
+    if creds_dict:
         try:
-            historico = carregar_historico_online(SHEET_ID, google_creds_dict)
+            cliente = conectar_google_sheets(creds_dict)
+            historico = carregar_historico_online(cliente, SHEET_ID)
 
             senha_admin = st.sidebar.text_input("Senha de administrador", type="password")
 
             if senha_admin == st.secrets.get("ADMIN_PASS", "admin123"):
-                # Admin vê tudo
-                st.success("🔑 Acesso como administrador")
+                st.success("✅ Acesso de administrador concedido.")
                 for linha in historico[1:]:
-                    st.markdown(f"### {linha[0]} - {linha[1]}")
-                    st.write(f"**Pergunta:** {linha[2]}")
-                    st.write(f"**Resposta:** {linha[3]}")
-                    st.caption(f"📎 Imagem enviada: {linha[4]}")
+                    st.markdown(f"**Data:** {linha[0]} | **Usuário:** {linha[1]}")
+                    st.markdown(f"**Pergunta:** {linha[2]}")
+                    st.markdown(f"**Resposta:** {linha[3]}")
+                    st.markdown(f"**Imagem:** {linha[4]}")
                     st.markdown("---")
             else:
-                # Usuário vê só o dele
-                usuario = st.text_input("Digite seu nome ou email para ver seu histórico")
-                if usuario.strip():
-                    historico_usuario = [linha for linha in historico[1:] if linha[1] == usuario]
+                usuario_filtro = st.text_input("Digite seu nome ou e-mail para ver seu histórico")
+                if usuario_filtro:
+                    historico_usuario = [linha for linha in historico[1:] if linha[1] == usuario_filtro]
                     if historico_usuario:
                         for linha in historico_usuario:
-                            st.markdown(f"### {linha[0]}")
-                            st.write(f"**Pergunta:** {linha[2]}")
-                            st.write(f"**Resposta:** {linha[3]}")
-                            st.caption(f"📎 Imagem enviada: {linha[4]}")
+                            st.markdown(f"**Data:** {linha[0]}")
+                            st.markdown(f"**Pergunta:** {linha[2]}")
+                            st.markdown(f"**Resposta:** {linha[3]}")
+                            st.markdown(f"**Imagem:** {linha[4]}")
                             st.markdown("---")
                     else:
                         st.info("Nenhuma consulta registrada ainda.")
                 else:
-                    st.warning("Digite seu nome ou email para ver o histórico.")
+                    st.warning("Digite seu nome ou e-mail para visualizar o histórico.")
 
         except Exception as e:
             st.error(f"Erro ao carregar histórico: {e}")
     else:
-        st.info("Configure as credenciais do Google para ver o histórico.")
+        st.warning("⚠️ Configure as credenciais do Google para salvar e visualizar o histórico.")
