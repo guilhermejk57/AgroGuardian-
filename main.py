@@ -11,12 +11,17 @@ from funcoes import (
     carregar_historico_online,
 )
 
-# Configuração da página
-st.set_page_config(page_title="AgroGuardian", layout="wide")
+# --- Configuração da página ---
+st.set_page_config(
+    page_title="AgroGuardian",
+    layout="wide",
+    page_icon="assets/icone.jpg"  # <-- coloque sua imagem icone.jpg na pasta assets
+)
+
 st.title("🌱 AgroGuardian")
 st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
 
-# Segredos (API e credenciais)
+# --- Segredos ---
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "SUA_CHAVE_GEMINI_AQUI")
 GOOGLE_CREDENTIALS_JSON = st.secrets.get("GOOGLE_CREDENTIALS_JSON", None)
 SHEET_ID = st.secrets.get("SHEET_ID", "SEU_ID_DA_PLANILHA")
@@ -27,7 +32,7 @@ else:
     creds_dict = None
     st.warning("⚠️ Credenciais do Google não configuradas. Histórico não será salvo.")
 
-# Configuração do Gemini
+# --- Configuração do Gemini ---
 if GEMINI_API_KEY.startswith("AI"):
     genai.configure(api_key=GEMINI_API_KEY)
     modelo = genai.GenerativeModel("gemini-2.0-flash")
@@ -35,10 +40,10 @@ else:
     st.error("Chave Gemini API inválida. Configure em st.secrets.")
     modelo = None
 
-# Carregar culturas
+# --- Carregar culturas ---
 culturas = carregar_culturas()
 
-# Sidebar
+# --- Sidebar ---
 menu = st.sidebar.radio("Menu", ["Nova consulta", "Histórico"])
 
 # --- Nova consulta ---
@@ -49,7 +54,6 @@ if menu == "Nova consulta":
             placeholder="Ex: João Silva ou joao@email.com"
         )
 
-        # selectbox com culturas
         cultura_selecionada = st.selectbox(
             "Selecione a cultura",
             ["(não especificar)"] + list(culturas.keys())
@@ -79,14 +83,12 @@ if menu == "Nova consulta":
             try:
                 dados_imagem = imagem2bytes(imagem_envio)
 
-                # Prompt reforçado com cultura + instrução para avaliar relevância
+                # prompt reforçado com cultura (se selecionada)
                 if cultura_selecionada != "(não especificar)":
                     prompt_completo = (
                         f"O usuário selecionou a cultura **{cultura_selecionada}**. "
                         f"As pragas mais comuns para essa cultura são: {', '.join(culturas[cultura_selecionada])}. "
-                        f"OBS: O usuário descreveu '{prompt}' e enviou uma imagem. "
-                        f"Verifique se faz sentido considerar essa cultura antes de sugerir pragas comuns. "
-                        f"Responda apenas se for relevante."
+                        f"Agora responda considerando a imagem e essa informação: {prompt}"
                     )
                 else:
                     prompt_completo = prompt
@@ -101,18 +103,23 @@ if menu == "Nova consulta":
                     st.subheader("Diagnóstico")
                     st.write(resposta)
 
-                    # Mostra pragas comuns se a resposta mencionar a cultura
-                    if cultura_selecionada != "(não especificar)" and cultura_selecionada.lower() in resposta.lower():
+                    # --- Mostrar pragas comuns apenas se a resposta do Gemini mencionar a cultura ---
+                    if (
+                        cultura_selecionada != "(não especificar)"
+                        and cultura_selecionada.lower() in resposta.lower()
+                    ):
                         pragas_comuns = culturas[cultura_selecionada]
                         st.info(
                             f"🔎 Para a cultura **{cultura_selecionada}**, "
                             f"as pragas mais comuns são: {', '.join(pragas_comuns)}."
                         )
 
-                # salvar histórico online (se credenciais existirem)
+                # --- Salvar histórico online ---
                 if creds_dict:
                     cliente = conectar_google_sheets(creds_dict)
-                    salvar_historico_online(cliente, SHEET_ID, usuario, prompt, resposta, imagem_envio.name)
+                    salvar_historico_online(
+                        cliente, SHEET_ID, usuario, prompt, resposta, imagem_envio.name
+                    )
                 else:
                     st.warning("⚠️ Histórico não foi salvo (credenciais do Google ausentes).")
 
@@ -143,7 +150,9 @@ elif menu == "Histórico":
                     placeholder="Ex: joao@email.com"
                 )
                 if usuario_filtro:
-                    historico_usuario = [linha for linha in historico[1:] if linha[1] == usuario_filtro]
+                    historico_usuario = [
+                        linha for linha in historico[1:] if linha[1] == usuario_filtro
+                    ]
                     if historico_usuario:
                         for linha in historico_usuario:
                             st.markdown(f"**Data:** {linha[0]}")
