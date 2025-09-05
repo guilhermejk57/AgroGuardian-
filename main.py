@@ -15,8 +15,7 @@ from funcoes import (
 st.set_page_config(
     page_title="AgroGuardian",
     layout="wide",
-    page_icon="assets/icone.jpg"  # <-- coloque sua imagem icone.jpg na pasta assets
-)
+    page_icon="assets/icone.png"  
 
 st.title("🌱 AgroGuardian")
 st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
@@ -169,3 +168,4 @@ elif menu == "Histórico":
             st.error(f"Erro ao carregar histórico: {e}")
     else:
         st.warning("⚠️ Configure as credenciais do Google para salvar e visualizar o histórico.")
+
