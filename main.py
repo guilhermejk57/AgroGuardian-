@@ -99,8 +99,8 @@ if menu == "Nova consulta":
                     st.subheader("Diagnóstico")
                     st.write(resposta)
 
-                    # mostra pragas comuns se o usuário escolheu cultura
-                    if cultura_selecionada != "(não especificar)":
+                    # mostra pragas comuns apenas se cultura aparecer na resposta do Gemini
+                    if cultura_selecionada != "(não especificar)" and cultura_selecionada.lower() in resposta.lower():
                         pragas_comuns = culturas[cultura_selecionada]
                         st.info(
                             f"🔎 Para a cultura **{cultura_selecionada}**, "
