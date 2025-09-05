@@ -44,7 +44,10 @@ menu = st.sidebar.radio("Menu", ["Nova consulta", "Histórico"])
 # --- Nova consulta ---
 if menu == "Nova consulta":
     with st.form("consulta_form"):
-        usuario = st.text_input("Seu nome ou e-mail")
+        usuario = st.text_input(
+            "Seu nome ou e-mail",
+            placeholder="Ex: João Silva ou joao@email.com"
+        )
 
         # selectbox com culturas
         cultura_selecionada = st.selectbox(
@@ -52,8 +55,17 @@ if menu == "Nova consulta":
             ["(não especificar)"] + list(culturas.keys())
         )
 
-        prompt = st.text_area("Descreva sua dúvida sobre a praga")
-        imagem_envio = st.file_uploader("Envie uma imagem da planta", type=["jpg", "jpeg", "png"])
+        prompt = st.text_area(
+            "Descreva sua dúvida sobre a praga",
+            placeholder="Ex: As folhas da soja estão amareladas com manchas escuras..."
+        )
+
+        imagem_envio = st.file_uploader(
+            "Envie uma imagem da planta",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=False
+        )
+
         submit = st.form_submit_button("Analisar imagem")
 
     if submit:
@@ -124,7 +136,10 @@ elif menu == "Histórico":
                     st.markdown(f"**Imagem:** {linha[4]}")
                     st.markdown("---")
             else:
-                usuario_filtro = st.text_input("Digite seu nome ou e-mail para ver seu histórico")
+                usuario_filtro = st.text_input(
+                    "Digite seu nome ou e-mail para ver seu histórico",
+                    placeholder="Ex: joao@email.com"
+                )
                 if usuario_filtro:
                     historico_usuario = [linha for linha in historico[1:] if linha[1] == usuario_filtro]
                     if historico_usuario:
