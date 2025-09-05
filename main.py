@@ -79,12 +79,14 @@ if menu == "Nova consulta":
             try:
                 dados_imagem = imagem2bytes(imagem_envio)
 
-                # prompt reforçado com cultura (se selecionada)
+                # Prompt reforçado com cultura + instrução para avaliar relevância
                 if cultura_selecionada != "(não especificar)":
                     prompt_completo = (
                         f"O usuário selecionou a cultura **{cultura_selecionada}**. "
                         f"As pragas mais comuns para essa cultura são: {', '.join(culturas[cultura_selecionada])}. "
-                        f"Agora responda considerando a imagem e essa informação: {prompt}"
+                        f"OBS: O usuário descreveu '{prompt}' e enviou uma imagem. "
+                        f"Verifique se faz sentido considerar essa cultura antes de sugerir pragas comuns. "
+                        f"Responda apenas se for relevante."
                     )
                 else:
                     prompt_completo = prompt
@@ -99,7 +101,7 @@ if menu == "Nova consulta":
                     st.subheader("Diagnóstico")
                     st.write(resposta)
 
-                    # mostra pragas comuns apenas se cultura aparecer na resposta do Gemini
+                    # Mostra pragas comuns se a resposta mencionar a cultura
                     if cultura_selecionada != "(não especificar)" and cultura_selecionada.lower() in resposta.lower():
                         pragas_comuns = culturas[cultura_selecionada]
                         st.info(
