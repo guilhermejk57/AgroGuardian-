@@ -16,6 +16,7 @@ st.set_page_config(
     page_title="AgroGuardian",
     layout="wide",
     page_icon="assets/icone.png"  
+)
 
 st.title("🌱 AgroGuardian")
 st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
