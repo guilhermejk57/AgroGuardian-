@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 st.title("🌱 AgroGuardian")
-st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
+st.caption("Diagnóstico de pragas em culturas agrícolas")
 
 # --- Segredos ---
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "SUA_CHAVE_GEMINI_AQUI")
@@ -169,4 +169,5 @@ elif menu == "Histórico":
             st.error(f"Erro ao carregar histórico: {e}")
     else:
         st.warning("⚠️ Configure as credenciais do Google para salvar e visualizar o histórico.")
+
 
