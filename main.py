@@ -1,105 +1,172 @@
+from PIL import Image
 import streamlit as st
-from funcoes import carregar_culturas, resposta_gemini, imagem2bytes, conectar_google_sheets, salvar_historico_online, carregar_historico_online
-import json
 import google.generativeai as genai
+import json
+from funcoes import (
+    carregar_culturas,
+    resposta_gemini,
+    imagem2bytes,
+    conectar_google_sheets,
+    salvar_historico_online,
+    carregar_historico_online,
+)
 
 # --- Configuração da página ---
 st.set_page_config(
     page_title="AgroGuardian",
-    page_icon="images/icone.jpg",  # caminho do seu ícone
-    layout="wide"
+    layout="wide",
+    page_icon="assets/icone.png"  
 )
 
-# --- CSS personalizado ---
-st.markdown("""
-    <style>
-        /* Fundo geral */
-        .stApp {
-            background-color: #f8f9fa;
-        }
+st.title("🌱 AgroGuardian")
+st.caption("Diagnóstico de pragas em culturas agrícolas usando Gemini")
 
-        /* Título estilizado */
-        .custom-title {
-            text-align: center;
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #2d6a4f;
-            margin-bottom: 10px;
-        }
+# --- Segredos ---
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "SUA_CHAVE_GEMINI_AQUI")
+GOOGLE_CREDENTIALS_JSON = st.secrets.get("GOOGLE_CREDENTIALS_JSON", None)
+SHEET_ID = st.secrets.get("SHEET_ID", "SEU_ID_DA_PLANILHA")
 
-        /* Subtítulo */
-        .custom-subtitle {
-            text-align: center;
-            font-size: 1.2rem;
-            color: #40916c;
-            margin-bottom: 25px;
-        }
+if GOOGLE_CREDENTIALS_JSON:
+    creds_dict = json.loads(GOOGLE_CREDENTIALS_JSON)
+else:
+    creds_dict = None
+    st.warning("⚠️ Credenciais do Google não configuradas. Histórico não será salvo.")
 
-        /* Botões */
-        .stButton>button {
-            background-color: #52b788;
-            color: white;
-            border-radius: 12px;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
-            transition: 0.3s;
-        }
-        .stButton>button:hover {
-            background-color: #40916c;
-            transform: scale(1.05);
-        }
-
-        /* Caixas de texto */
-        textarea, input {
-            border-radius: 10px !important;
-            border: 1px solid #52b788 !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- HTML para título e subtítulo ---
-st.markdown("<div class='custom-title'>🌱 AgroGuardian</div>", unsafe_allow_html=True)
-st.markdown("<div class='custom-subtitle'>Seu assistente para agricultura inteligente</div>", unsafe_allow_html=True)
+# --- Configuração do Gemini ---
+if GEMINI_API_KEY.startswith("AI"):
+    genai.configure(api_key=GEMINI_API_KEY)
+    modelo = genai.GenerativeModel("gemini-2.0-flash")
+else:
+    st.error("Chave Gemini API inválida. Configure em st.secrets.")
+    modelo = None
 
 # --- Carregar culturas ---
 culturas = carregar_culturas()
 
-# --- Carregar chaves do Streamlit Secrets ---
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-SHEET_ID = st.secrets["SHEET_ID"]
-GOOGLE_CREDENTIALS_JSON = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
+# --- Sidebar ---
+menu = st.sidebar.radio("Menu", ["Nova consulta", "Histórico"])
 
-# --- Configurar modelo Gemini ---
-genai.configure(api_key=GEMINI_API_KEY)
-modelo = genai.GenerativeModel("gemini-1.5-flash")
+# --- Nova consulta ---
+if menu == "Nova consulta":
+    with st.form("consulta_form"):
+        usuario = st.text_input(
+            "Seu nome ou e-mail",
+            placeholder="Ex: João Silva ou joao@email.com"
+        )
 
-# --- Conectar ao Google Sheets ---
-cliente = conectar_google_sheets(GOOGLE_CREDENTIALS_JSON)
+        cultura_selecionada = st.selectbox(
+            "Selecione a cultura",
+            ["(não especificar)"] + list(culturas.keys())
+        )
 
-# --- Interface principal ---
-st.header("📸 Análise de Imagens de Plantas")
+        prompt = st.text_area(
+            "Descreva sua dúvida sobre a praga",
+            placeholder="Ex: As folhas da soja estão amareladas com manchas escuras..."
+        )
 
-imagem_upload = st.file_uploader("Envie uma imagem da planta", type=["jpg", "jpeg", "png"])
-prompt = st.text_area("Descreva o problema ou dúvida (opcional):")
+        imagem_envio = st.file_uploader(
+            "Envie uma imagem da planta",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=False
+        )
 
-if st.button("🔍 Analisar"):
-    try:
-        if imagem_upload:
-            img_bytes = imagem2bytes(imagem_upload)
-            resposta = resposta_gemini(modelo, img_bytes, prompt)
-            st.success("✅ Resultado da análise:")
-            st.write(resposta)
+        submit = st.form_submit_button("Analisar imagem")
 
-            salvar_historico_online(cliente, SHEET_ID, "Usuário", prompt, resposta, imagem_upload.name)
-
+    if submit:
+        if not usuario.strip():
+            st.error("Informe seu nome ou e-mail!")
+        elif not prompt.strip():
+            st.error("Digite uma descrição da sua dúvida!")
+        elif not imagem_envio:
+            st.error("Envie uma imagem da planta!")
         else:
-            st.warning("⚠️ Por favor, envie uma imagem para análise.")
+            try:
+                dados_imagem = imagem2bytes(imagem_envio)
 
-    except Exception as e:
-        st.error(f"Erro: {e}")
+                # prompt reforçado com cultura (se selecionada)
+                if cultura_selecionada != "(não especificar)":
+                    prompt_completo = (
+                        f"O usuário selecionou a cultura **{cultura_selecionada}**. "
+                        f"As pragas mais comuns para essa cultura são: {', '.join(culturas[cultura_selecionada])}. "
+                        f"Agora responda considerando a imagem e essa informação: {prompt}"
+                    )
+                else:
+                    prompt_completo = prompt
+
+                resposta = resposta_gemini(modelo, dados_imagem, prompt_completo)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    imagem = Image.open(imagem_envio)
+                    st.image(imagem, caption="Imagem enviada", use_container_width=True)
+                with col2:
+                    st.subheader("Diagnóstico")
+                    st.write(resposta)
+
+                    # --- Mostrar pragas comuns apenas se a resposta do Gemini mencionar a cultura ---
+                    if (
+                        cultura_selecionada != "(não especificar)"
+                        and cultura_selecionada.lower() in resposta.lower()
+                    ):
+                        pragas_comuns = culturas[cultura_selecionada]
+                        st.info(
+                            f"🔎 Para a cultura **{cultura_selecionada}**, "
+                            f"as pragas mais comuns são: {', '.join(pragas_comuns)}."
+                        )
+
+                # --- Salvar histórico online ---
+                if creds_dict:
+                    cliente = conectar_google_sheets(creds_dict)
+                    salvar_historico_online(
+                        cliente, SHEET_ID, usuario, prompt, resposta, imagem_envio.name
+                    )
+                else:
+                    st.warning("⚠️ Histórico não foi salvo (credenciais do Google ausentes).")
+
+            except Exception as e:
+                st.error(f"Erro: {e}")
 
 # --- Histórico ---
-if st.checkbox("📜 Mostrar histórico"):
-    historico = carregar_historico_online(cliente, SHEET_ID)
-    st.dataframe(historico)
+elif menu == "Histórico":
+    st.subheader("Histórico de Consultas")
+    if creds_dict:
+        try:
+            cliente = conectar_google_sheets(creds_dict)
+            historico = carregar_historico_online(cliente, SHEET_ID)
+
+            senha_admin = st.sidebar.text_input("Senha de administrador", type="password")
+
+            if senha_admin == st.secrets.get("ADMIN_PASS", "admin123"):
+                st.success("✅ Acesso de administrador concedido.")
+                for linha in historico[1:]:
+                    st.markdown(f"**Data:** {linha[0]} | **Usuário:** {linha[1]}")
+                    st.markdown(f"**Pergunta:** {linha[2]}")
+                    st.markdown(f"**Resposta:** {linha[3]}")
+                    st.markdown(f"**Imagem:** {linha[4]}")
+                    st.markdown("---")
+            else:
+                usuario_filtro = st.text_input(
+                    "Digite seu nome ou e-mail para ver seu histórico",
+                    placeholder="Ex: joao@email.com"
+                )
+                if usuario_filtro:
+                    historico_usuario = [
+                        linha for linha in historico[1:] if linha[1] == usuario_filtro
+                    ]
+                    if historico_usuario:
+                        for linha in historico_usuario:
+                            st.markdown(f"**Data:** {linha[0]}")
+                            st.markdown(f"**Pergunta:** {linha[2]}")
+                            st.markdown(f"**Resposta:** {linha[3]}")
+                            st.markdown(f"**Imagem:** {linha[4]}")
+                            st.markdown("---")
+                    else:
+                        st.info("Nenhuma consulta registrada ainda.")
+                else:
+                    st.warning("Digite seu nome ou e-mail para visualizar o histórico.")
+
+        except Exception as e:
+            st.error(f"Erro ao carregar histórico: {e}")
+    else:
+        st.warning("⚠️ Configure as credenciais do Google para salvar e visualizar o histórico.")
+
